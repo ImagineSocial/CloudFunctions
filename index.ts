@@ -1,16 +1,148 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-import * as serviceAccount from '/Users/DonnyM/Documents/SwiftProjects/Imagine/cloudfunctions/functions/serviceAccountKey.json';
+// import * as serviceAccount from 'functions/serviceAccountKey.json';
+// const serviceAccount = require('./functions/serviceAccountKey.json');
+
+const fuckMyLife = {
+    //serviceAccountKey.json not visible because I think it holds private information
+    //the import function was a pain, that I wasn't able to get going
+};
 
 
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  databaseURL: "https://imagine-6214f.firebaseio.com"
+    credential: admin.credential.cert(fuckMyLife as admin.ServiceAccount),
+    databaseURL: "https://imagine-6214f.firebaseio.com"
 });
 
+export const changeCommunityPostCount = functions
+.region("europe-west1")
+.firestore
+.document('/Facts/{factID}/posts/{postID}')
+.onWrite((change, context) => {
 
-export const wildcard = functions.firestore
+    const db = admin.firestore();
+    const countRef = db.collection('Facts').doc(context.params.factID);
+    
+    if (!change.before.exists) {
+        countRef.update({
+            postCount: admin.firestore.FieldValue.increment(1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error);
+            return null;
+        });
+        return null;
+    } else if (change.before.exists && change.after.exists) {
+        return null;
+    } else if (!change.after.exists) {
+        countRef.update({
+            postCount: admin.firestore.FieldValue.increment(-1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    }
+
+    return null;
+});
+
+export const changeUserPostCount = functions
+.region("europe-west1")
+.firestore
+.document('/Users/{userID}/posts/{postID}')
+.onUpdate((change, context) => {
+
+    const db = admin.firestore();
+    const countRef = db.collection('Users').doc(context.params.userID);
+    
+    if (!change.before.exists) {
+        countRef.update({
+            postCount: admin.firestore.FieldValue.increment(1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    } else if (change.before.exists && change.after.exists) {
+        return null;
+    } else if (!change.after.exists) {
+        countRef.update({
+            postCount: admin.firestore.FieldValue.increment(-1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    }
+    return null;
+});
+
+export const changePostCommentCount = functions
+.region("europe-west1")
+.firestore
+.document('/Comments/{postID}/threads/{commentID}')
+.onUpdate((change, context) => {
+
+    const db = admin.firestore();
+    const countRef = db.collection('Posts').doc(context.params.postID);
+    
+    if (!change.before.exists) {
+        countRef.update({
+            commentCount: admin.firestore.FieldValue.increment(1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    } else if (change.before.exists && change.after.exists) {
+        return null;
+    } else if (!change.after.exists) {
+        countRef.update({
+            commentCount: admin.firestore.FieldValue.increment(-1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    }
+    return null;
+});
+
+export const changePostCommentCountForChildren = functions
+.region("europe-west1")
+.firestore
+.document('/Comments/{postID}/threads/{commentID}/children/{childID}')
+.onUpdate((change, context) => {
+
+    const db = admin.firestore();
+    const countRef = db.collection('Posts').doc(context.params.postID);
+    
+    if (!change.before.exists) {
+        countRef.update({
+            commentCount: admin.firestore.FieldValue.increment(1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    } else if (change.before.exists && change.after.exists) {
+        return null;
+    } else if (!change.after.exists) {
+        countRef.update({
+            commentCount: admin.firestore.FieldValue.increment(-1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    }
+    return null;
+});
+
+export const wildcard = functions
+.region("europe-west1")
+.firestore
 .document('/Users/{userUID}/notifications/{document}')
 .onCreate(async (snapshot, context) => {
         if (snapshot && snapshot.data) {
@@ -27,25 +159,18 @@ export const wildcard = functions.firestore
             .collection("Users").doc(userID).get()
             .then(result => {
                     const token = result.data()!.fcmToken;
-                
-            //   const results = await Promise.all([getDeviceTokensPromise]);
-            //   const tokenSnapshot = results[0];
 
-            console.log("Das sind die results: ", token)
             if (!token) {
                 console.log('There are no notification tokens to send to.');
                 return null;
             } 
-            //   const token = tokenSnapshot.val();
-        // console.log(type);
+
             switch (type) {
                 case "friend": {
-                    console.log("send friend notification");
                     title = "Freundschaftsanfrage";
                     const name = document.name;
                     message = `${name} möchte mit dir befreundet sein`;
 
-                    console.log(`title: ${title}, name: ${name}, token: ${token}`);
                     return sendMessage(title,message, token)
                     .catch(err => handle(err))
                     .then(() => console.log('this will succeed'))
@@ -54,12 +179,10 @@ export const wildcard = functions.firestore
                     break;
                 }
                 case "message": {
-                    console.log("send message notification");
                      
                     title = document.name;
                     message = document.message;
 
-                    console.log(`title: ${title}, name: ${name}, token: ${token}`);
                     return sendMessage(title, message, token)
                     .catch(err => handle(err))
                     .then(() => console.log('this will succeed'))
@@ -68,13 +191,11 @@ export const wildcard = functions.firestore
                     break;
                 }
                 case "comment": {
-                    console.log("send comment notification");
                      
                     const name = document.name;
                     title = `${name} hat kommentiert:`
                     message = document.comment;
 
-                    console.log(`title: ${title}, name: ${name}, token: ${token}`);
                     return sendMessage(title,message, token)
                     .catch(err => handle(err))
                     .then(() => console.log('this will succeed'))
@@ -122,9 +243,3 @@ function handle(err:any) {
         };
     };
 };
-
-export const fuck = functions.firestore
-.document('/Users/{userUID}')
-.onCreate((snapshot, context) => {
-    console.log("Neuer User");
-});
