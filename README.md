@@ -1,8 +1,8 @@
 # CloudFunctions
-The first cloud function to notify users for messages, friend requests and comments.
 
-Copied together and really happy that this function works. The possibilities with cloud functions are huge, so we hope there are some volunteers who got some experience with Typescript/Javascript.
+Our cloud functions provide a small relief for the app and ensure that the database does not become too insecure.
 
-For example, implementation for notifications on follow-up comments for a post you commented or a basic algorithm for the main feed, so we can implement it to "follow" a topic and friends, to get a bit more individualisation on the feed.
-
-If you are motivated, please let us know! We would be very happy about every message and interaction :)
+So far we have already achieved the following: 
+- CommentCount is a value that is in every post object and is incremented when a comment is added to the database.
+- PostCount is a value found in User and Topic objects and is increased with each added post.
+- Messages in the notification collection of users are converted to a push message if a notification token is present, also depending on the type of message, e.g. a comment or a friend request. (Upvotes are ignored)
