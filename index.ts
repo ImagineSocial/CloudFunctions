@@ -6,9 +6,8 @@ import * as admin from 'firebase-admin';
 
 const fuckMyLife = {
     //serviceAccountKey.json not visible because I think it holds private information
-    //the import function was a pain, that I wasn't able to get going
+    //the import function was a pain, that I wasn't able to get going :(
 };
-
 
 admin.initializeApp({
     credential: admin.credential.cert(fuckMyLife as admin.ServiceAccount),
@@ -47,11 +46,42 @@ export const changeCommunityPostCount = functions
     return null;
 });
 
+export const changeEnglishCommunityPostCount = functions
+.firestore
+.document('/Data/en/topics/{topicID}/posts/{postID}')
+.onWrite((change, context) => {
+
+    const db = admin.firestore();
+    const countRef = db.collection('Data').doc('en').collection('topics').doc(context.params.topicID);
+    
+    if (!change.before.exists) {
+        countRef.update({
+            postCount: admin.firestore.FieldValue.increment(1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error);
+            return null;
+        });
+        return null;
+    } else if (change.before.exists && change.after.exists) {
+        return null;
+    } else if (!change.after.exists) {
+        countRef.update({
+            postCount: admin.firestore.FieldValue.increment(-1)
+        }).catch((error: any) => {
+            console.log("We have an error: ", error)
+            return null;
+        });
+        return null;
+    }
+
+    return null;
+});
+
 export const changeUserPostCount = functions
 .region("europe-west1")
 .firestore
 .document('/Users/{userID}/posts/{postID}')
-.onUpdate((change, context) => {
+.onWrite((change, context) => {
 
     const db = admin.firestore();
     const countRef = db.collection('Users').doc(context.params.userID);
@@ -82,12 +112,52 @@ export const changePostCommentCount = functions
 .region("europe-west1")
 .firestore
 .document('/Comments/{postID}/threads/{commentID}')
-.onUpdate((change, context) => {
+.onWrite((change, context) => {
 
-    const db = admin.firestore();
-    const countRef = db.collection('Posts').doc(context.params.postID);
+    console.log("onUpdate called in commentCount")
+    const db = admin.firestore();  
+    let isEnglish = false;
+    let isTopicPost = false;
     
     if (!change.before.exists) {
+        const data = change.after.data();
+
+        if (data == null) {
+            console.log("no data in after")
+           return;
+         }
+
+         const topicPost = data.isTopicPost;
+         const language = data.language;
+
+         if (language != null) {
+            if (language == 'en') {
+               isEnglish = true;
+            }
+        }
+
+        if (topicPost != null) {
+            if (topicPost == true) {
+               isTopicPost = true;
+            }
+        }
+
+        let countRef: FirebaseFirestore.DocumentReference;
+
+        if (isTopicPost) {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('topicPosts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('TopicPosts').doc(context.params.postID);
+            }
+        } else {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('posts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('Posts').doc(context.params.postID);
+            }
+        }
+
         countRef.update({
             commentCount: admin.firestore.FieldValue.increment(1)
         }).catch((error: any) => {
@@ -98,6 +168,44 @@ export const changePostCommentCount = functions
     } else if (change.before.exists && change.after.exists) {
         return null;
     } else if (!change.after.exists) {
+        const data = change.before.data()
+
+        if (data == null) {
+            console.log("no data in before")
+            return;
+        }
+
+        const topicPost = data.isTopicPost;
+         const language = data.language;
+
+         if (language != null) {
+            if (language == 'en') {
+               isEnglish = true;
+            }
+        }
+
+        if (topicPost != null) {
+            if (topicPost == true) {
+               isTopicPost = true;
+            }
+        }
+
+        let countRef: FirebaseFirestore.DocumentReference;
+
+        if (isTopicPost) {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('topicPosts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('TopicPosts').doc(context.params.postID);
+            }
+        } else {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('posts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('Posts').doc(context.params.postID);
+            }
+        }
+
         countRef.update({
             commentCount: admin.firestore.FieldValue.increment(-1)
         }).catch((error: any) => {
@@ -112,13 +220,53 @@ export const changePostCommentCount = functions
 export const changePostCommentCountForChildren = functions
 .region("europe-west1")
 .firestore
-.document('/Comments/{postID}/threads/{commentID}/children/{childID}')
-.onUpdate((change, context) => {
+.document('/Comments/{postID}/threads/comment/children/{child}')
+.onWrite((change, context) => {
 
     const db = admin.firestore();
-    const countRef = db.collection('Posts').doc(context.params.postID);
+    let isTopicPost = false;
+    let isEnglish = false;
     
     if (!change.before.exists) {
+
+        const data = change.after.data()
+
+        if (data == null) {
+            console.log("no data in after")
+            return;
+        }
+
+        const topicPost = data.isTopicPost;
+         const language = data.language;
+
+         if (language != null) {
+            if (language == 'en') {
+               isEnglish = true;
+            }
+        }
+
+        if (topicPost != null) {
+            if (topicPost == true) {
+               isTopicPost = true;
+            }
+        }
+
+        let countRef: FirebaseFirestore.DocumentReference;
+
+        if (isTopicPost) {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('topicPosts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('TopicPosts').doc(context.params.postID);
+            }
+        } else {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('posts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('Posts').doc(context.params.postID);
+            }
+        }
+
         countRef.update({
             commentCount: admin.firestore.FieldValue.increment(1)
         }).catch((error: any) => {
@@ -129,6 +277,44 @@ export const changePostCommentCountForChildren = functions
     } else if (change.before.exists && change.after.exists) {
         return null;
     } else if (!change.after.exists) {
+        const data = change.before.data()
+
+        if (data == null) {
+            console.log("no data in before")
+            return;
+        }
+
+        const topicPost = data.isTopicPost;
+         const language = data.language;
+
+         if (language != null) {
+            if (language == 'en') {
+               isEnglish = true;
+            }
+        }
+
+        if (topicPost != null) {
+            if (topicPost == true) {
+               isTopicPost = true;
+            }
+        }
+
+        let countRef: FirebaseFirestore.DocumentReference;
+
+        if (isTopicPost) {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('topicPosts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('TopicPosts').doc(context.params.postID);
+            }
+        } else {
+            if (isEnglish) {
+                countRef = db.collection('Data').doc('en').collection('posts').doc(context.params.postID);
+            } else {
+                countRef = db.collection('Posts').doc(context.params.postID);
+            }
+        }
+        
         countRef.update({
             commentCount: admin.firestore.FieldValue.increment(-1)
         }).catch((error: any) => {
@@ -148,11 +334,23 @@ export const wildcard = functions
         if (snapshot && snapshot.data) {
 
             
-        const document = snapshot.data()!;
+        const document = snapshot.data();
+        if (document == null) { 
+            return;
+        }
         const type = document.type;
         const userID = context.params.userUID;
         let title:string;
         let message: string;
+        let isEnglish = false;
+
+        const language = document.language;
+
+        if (language != null) {
+            if (language == "en") {
+                isEnglish = true;
+            }
+        }
 
         ///get fcmToken
         admin.firestore()
@@ -167,9 +365,16 @@ export const wildcard = functions
 
             switch (type) {
                 case "friend": {
-                    title = "Freundschaftsanfrage";
                     const name = document.name;
-                    message = `${name} möchte mit dir befreundet sein`;
+
+                    if (isEnglish) {
+                        title = "Friend request";
+                        message = `${name} want's to add you as a friend`;
+                    } else {
+                        title = "Freundschaftsanfrage";
+                        message = `${name} möchte mit dir befreundet sein`;
+                    }
+                    
 
                     return sendMessage(title,message, token)
                     .catch(err => handle(err))
@@ -193,7 +398,12 @@ export const wildcard = functions
                 case "comment": {
                      
                     const name = document.name;
-                    title = `${name} hat kommentiert:`
+                    if (isEnglish) {
+                        title = `${name} commented:`
+                    } else {
+                        title = `${name} hat kommentiert:`
+                    }
+                    
                     message = document.comment;
 
                     return sendMessage(title,message, token)
